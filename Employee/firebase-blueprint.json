@@ -1,0 +1,476 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Authorized Indesian Medical employee profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "employeeId": { "type": "string", "description": "Unique Employee ID (e.g. IND-EMP-1001)" },
+        "fullName": { "type": "string", "description": "Full name of employee" },
+        "email": { "type": "string", "description": "Corporate email address" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "departmentId": { "type": "string", "description": "Assigned department ID" },
+        "role": { "type": "string", "enum": ["EMPLOYEE", "SENIOR_EXECUTIVE", "DEPARTMENT_MANAGER"] },
+        "designation": { "type": "string", "description": "Designation/Job Title" },
+        "managerId": { "type": "string", "description": "Reporting manager UID or Employee ID" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"] },
+        "permissions": { "type": "array", "description": "List of granted permission keys" },
+        "joiningDate": { "type": "string", "description": "ISO date of joining" },
+        "isAuthorizedEmployee": { "type": "boolean", "description": "Must be true" },
+        "accountType": { "type": "string", "enum": ["EMPLOYEE"] },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Account update timestamp" },
+        "lastLoginAt": { "type": "string", "description": "Last authenticated login timestamp" }
+      },
+      "required": ["uid", "employeeId", "fullName", "email", "departmentId", "role", "status", "permissions", "isAuthorizedEmployee", "accountType"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Indesian Medical organizational department",
+      "type": "object",
+      "properties": {
+        "departmentId": { "type": "string", "description": "Department ID" },
+        "name": { "type": "string", "description": "Department name" },
+        "code": { "type": "string", "description": "Department code (01-10)" },
+        "description": { "type": "string", "description": "Scope of responsibilities" },
+        "managerId": { "type": "string", "description": "Department head UID or Employee ID" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] }
+      },
+      "required": ["departmentId", "name", "code", "description", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Department task or automated workflow item",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string", "description": "Unique Task ID" },
+        "title": { "type": "string", "description": "Task summary title" },
+        "description": { "type": "string", "description": "Task description details" },
+        "departmentId": { "type": "string", "description": "Department ID" },
+        "assignedEmployeeId": { "type": "string", "description": "Assigned employee UID/ID" },
+        "createdBy": { "type": "string", "description": "Creator employee UID/ID" },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "status": { "type": "string", "enum": ["NEW", "ASSIGNED", "IN_PROGRESS", "WAITING", "PENDING_APPROVAL", "ESCALATED", "COMPLETED", "CANCELLED"] },
+        "source": { "type": "string", "enum": ["MANUAL", "AUTOMATION", "SYSTEM", "SUPERVISOR", "SYSTEM_ALERT", "PARTNER_REQUEST", "PATIENT_ESCALATION"] },
+        "automationType": { "type": "string", "enum": ["NONE", "AI_ASSISTED", "FULL_AUTOMATION"] },
+        "relatedEntityType": { "type": "string", "description": "Type of associated entity" },
+        "relatedEntityId": { "type": "string", "description": "ID of associated entity" },
+        "dueDate": { "type": "string", "description": "ISO completion due date" },
+        "approvalRequired": { "type": "boolean", "description": "Whether approval is mandatory" },
+        "approvalStatus": { "type": "string", "enum": ["NONE", "PENDING", "APPROVED", "REJECTED"] },
+        "escalationLevel": { "type": "string", "enum": ["NONE", "TEAM_LEAD", "DEPARTMENT_MANAGER", "EXECUTIVE"] },
+        "createdAt": { "type": "string", "description": "Creation ISO date" },
+        "updatedAt": { "type": "string", "description": "Last update ISO date" },
+        "completedAt": { "type": "string", "description": "Completion ISO date" }
+      },
+      "required": ["taskId", "title", "departmentId", "priority", "status"]
+    },
+    "Approval": {
+      "title": "Approval",
+      "description": "Task authorization request record",
+      "type": "object",
+      "properties": {
+        "approvalId": { "type": "string", "description": "Unique Approval ID" },
+        "taskId": { "type": "string", "description": "Target Task ID" },
+        "requestedBy": { "type": "string", "description": "Requester employee UID/ID" },
+        "approverId": { "type": "string", "description": "Reviewer employee UID/ID" },
+        "departmentId": { "type": "string", "description": "Department ID" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] },
+        "remarks": { "type": "string", "description": "Review notes or justification" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "reviewedAt": { "type": "string", "description": "Review timestamp" }
+      },
+      "required": ["approvalId", "taskId", "requestedBy", "departmentId", "status"]
+    },
+    "Escalation": {
+      "title": "Escalation",
+      "description": "Task escalation tracking record",
+      "type": "object",
+      "properties": {
+        "escalationId": { "type": "string", "description": "Unique Escalation ID" },
+        "taskId": { "type": "string", "description": "Target Task ID" },
+        "departmentId": { "type": "string", "description": "Department ID" },
+        "currentLevel": { "type": "string", "enum": ["TEAM_LEAD", "DEPARTMENT_MANAGER", "EXECUTIVE"] },
+        "assignedTo": { "type": "string", "description": "Assignee name or role" },
+        "reason": { "type": "string", "description": "Escalation reason" },
+        "slaStatus": { "type": "string", "description": "SLA tracker status" },
+        "createdAt": { "type": "string", "description": "Escalation timestamp" },
+        "resolvedAt": { "type": "string", "description": "Resolution timestamp" }
+      },
+      "required": ["escalationId", "taskId", "departmentId", "currentLevel", "reason"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app alert notification for staff",
+      "type": "object",
+      "properties": {
+        "notificationId": { "type": "string", "description": "Notification ID" },
+        "recipientUid": { "type": "string", "description": "Recipient employee UID" },
+        "title": { "type": "string", "description": "Notification headline" },
+        "message": { "type": "string", "description": "Alert body message" },
+        "isRead": { "type": "boolean", "description": "Read flag" },
+        "createdAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["notificationId", "recipientUid", "title", "message"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable operational audit entry",
+      "type": "object",
+      "properties": {
+        "logId": { "type": "string", "description": "Unique log ID" },
+        "actorUid": { "type": "string", "description": "Actor Firebase Auth UID" },
+        "actorEmployeeId": { "type": "string", "description": "Actor Employee ID" },
+        "departmentId": { "type": "string", "description": "Department ID" },
+        "action": { "type": "string", "description": "Audited action key" },
+        "entityType": { "type": "string", "description": "Target entity type" },
+        "entityId": { "type": "string", "description": "Target entity ID" },
+        "result": { "type": "string", "enum": ["SUCCESS", "DENIED", "FLAGGED", "FAILED"] },
+        "details": { "type": "string", "description": "Audit details message" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["logId", "actorUid", "actorEmployeeId", "departmentId", "action", "entityType", "entityId", "result"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily employee check-in, check-out, break, and status tracking record",
+      "type": "object",
+      "properties": {
+        "attendanceId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "uid": { "type": "string" },
+        "date": { "type": "string" },
+        "checkIn": { "type": "string" },
+        "checkOut": { "type": "string" },
+        "status": { "type": "string", "enum": ["PRESENT", "LATE", "HALF_DAY", "ABSENT", "ON_LEAVE", "HOLIDAY", "WEEK_OFF", "WORK_FROM_HOME", "PENDING_CORRECTION"] },
+        "shiftId": { "type": "string" },
+        "totalWorkingMinutes": { "type": "number" },
+        "lateMinutes": { "type": "number" },
+        "earlyDeparture": { "type": "boolean" },
+        "breakMinutes": { "type": "number" }
+      },
+      "required": ["attendanceId", "employeeId", "date", "checkIn", "status"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "Employee leave application record",
+      "type": "object",
+      "properties": {
+        "leaveRequestId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "leaveType": { "type": "string", "enum": ["CASUAL", "SICK", "ANNUAL", "EMERGENCY", "UNPAID", "OTHER"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "totalDays": { "type": "number" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] }
+      },
+      "required": ["leaveRequestId", "employeeId", "leaveType", "startDate", "endDate", "status"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "Work shift template and schedule constraints",
+      "type": "object",
+      "properties": {
+        "shiftId": { "type": "string" },
+        "name": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "breakDurationMinutes": { "type": "number" },
+        "gracePeriodMinutes": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] }
+      },
+      "required": ["shiftId", "name", "startTime", "endTime"]
+    },
+    "Holiday": {
+      "title": "Holiday",
+      "description": "Official company holiday calendar entry",
+      "type": "object",
+      "properties": {
+        "holidayId": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["holidayId", "name", "date"]
+    },
+    "AttendanceCorrection": {
+      "title": "AttendanceCorrection",
+      "description": "Employee request to rectify attendance record",
+      "type": "object",
+      "properties": {
+        "correctionId": { "type": "string" },
+        "attendanceId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "date": { "type": "string" },
+        "requestedCheckIn": { "type": "string" },
+        "requestedCheckOut": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] }
+      },
+      "required": ["correctionId", "attendanceId", "employeeId", "status"]
+    },
+    "KPI": {
+      "title": "KPI",
+      "description": "Key Performance Indicator definition",
+      "type": "object",
+      "properties": {
+        "kpiId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "role": { "type": "string" },
+        "measurementType": { "type": "string", "enum": ["COUNT", "PERCENTAGE", "TIME", "CURRENCY", "RATING", "BOOLEAN"] },
+        "target": { "type": "number" },
+        "unit": { "type": "string" },
+        "weight": { "type": "number" },
+        "frequency": { "type": "string", "enum": ["WEEKLY", "MONTHLY", "QUARTERLY", "ANNUAL"] },
+        "active": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["kpiId", "name", "measurementType", "target", "unit", "weight", "frequency", "active"]
+    },
+    "KPIAssignment": {
+      "title": "KPIAssignment",
+      "description": "Custom KPI assignment mapping",
+      "type": "object",
+      "properties": {
+        "assignmentId": { "type": "string" },
+        "kpiId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "role": { "type": "string" },
+        "targetOverride": { "type": "number" },
+        "weightOverride": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["assignmentId", "kpiId"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Employee performance goal",
+      "type": "object",
+      "properties": {
+        "goalId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "startDate": { "type": "string" },
+        "targetDate": { "type": "string" },
+        "progress": { "type": "number" },
+        "status": { "type": "string", "enum": ["NOT_STARTED", "IN_PROGRESS", "AT_RISK", "COMPLETED", "CANCELLED", "OVERDUE"] },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["goalId", "employeeId", "title", "startDate", "targetDate", "progress", "status"]
+    },
+    "PerformanceReview": {
+      "title": "PerformanceReview",
+      "description": "Employee evaluation and performance review record",
+      "type": "object",
+      "properties": {
+        "reviewId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "cycle": { "type": "string", "enum": ["MONTHLY", "QUARTERLY", "HALF_YEARLY", "ANNUAL"] },
+        "period": { "type": "string" },
+        "status": { "type": "string", "enum": ["DRAFT", "SELF_REVIEW_PENDING", "MANAGER_REVIEW_PENDING", "DEPARTMENT_REVIEW_PENDING", "HR_REVIEW", "FINALIZED"] },
+        "overallScore": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["reviewId", "employeeId", "cycle", "period", "status"]
+    },
+    "Recognition": {
+      "title": "Recognition",
+      "description": "Employee appreciation award or badge",
+      "type": "object",
+      "properties": {
+        "recognitionId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["EXCELLENT_PERFORMANCE", "CUSTOMER_SERVICE", "TEAMWORK", "INNOVATION", "SLA_EXCELLENCE", "OPERATIONAL_EXCELLENCE", "LEADERSHIP", "OTHER"] },
+        "givenBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["recognitionId", "employeeId", "title", "category", "givenBy"]
+    },
+    "PerformanceSnapshot": {
+      "title": "PerformanceSnapshot",
+      "description": "Immutable historical performance period snapshot",
+      "type": "object",
+      "properties": {
+        "snapshotId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "period": { "type": "string" },
+        "overallScore": { "type": "number" },
+        "reviewStatus": { "type": "string" },
+        "finalizedBy": { "type": "string" },
+        "finalizedAt": { "type": "string" }
+      },
+      "required": ["snapshotId", "employeeId", "period", "overallScore", "finalizedBy", "finalizedAt"]
+    },
+    "TrainingProgram": {
+      "title": "TrainingProgram",
+      "description": "Healthcare workforce training course program definition",
+      "type": "object",
+      "properties": {
+        "trainingId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "trainer": { "type": "string" },
+        "deliveryMode": { "type": "string" },
+        "duration": { "type": "number" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "capacity": { "type": "number" },
+        "mandatory": { "type": "boolean" },
+        "status": { "type": "string" }
+      },
+      "required": ["trainingId", "title", "category", "trainer", "deliveryMode", "startDate", "endDate", "mandatory", "status"]
+    },
+    "TrainingAssignment": {
+      "title": "TrainingAssignment",
+      "description": "Employee training assignment and completion record",
+      "type": "object",
+      "properties": {
+        "assignmentId": { "type": "string" },
+        "trainingId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "assignedBy": { "type": "string" },
+        "assignedAt": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "status": { "type": "string" },
+        "progress": { "type": "number" }
+      },
+      "required": ["assignmentId", "trainingId", "employeeId", "assignedBy", "assignedAt", "dueDate", "status", "progress"]
+    },
+    "Skill": {
+      "title": "Skill",
+      "description": "Master clinical and operational skill definition",
+      "type": "object",
+      "properties": {
+        "skillId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["skillId", "name", "category", "active"]
+    },
+    "Certification": {
+      "title": "Certification",
+      "description": "Employee medical council license or certification record",
+      "type": "object",
+      "properties": {
+        "certificationId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "name": { "type": "string" },
+        "issuingOrganization": { "type": "string" },
+        "certificateNumber": { "type": "string" },
+        "issueDate": { "type": "string" },
+        "expiryDate": { "type": "string" },
+        "status": { "type": "string" },
+        "verified": { "type": "boolean" }
+      },
+      "required": ["certificationId", "employeeId", "name", "issuingOrganization", "certificateNumber", "issueDate", "status", "verified"]
+    }
+  },
+  "firestore": {
+    "/employees/{uid}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Authorized Indesian employee records"
+    },
+    "/departments/{departmentId}": {
+      "schema": { "$ref": "#/entities/Department" },
+      "description": "Organizational departments"
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Tasks and automated workflows"
+    },
+    "/approvals/{approvalId}": {
+      "schema": { "$ref": "#/entities/Approval" },
+      "description": "Approval requests"
+    },
+    "/escalations/{escalationId}": {
+      "schema": { "$ref": "#/entities/Escalation" },
+      "description": "Task escalations"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Employee notifications"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable security and operational audit logs"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Employee attendance and check-in records"
+    },
+    "/leaveRequests/{leaveRequestId}": {
+      "schema": { "$ref": "#/entities/LeaveRequest" },
+      "description": "Employee leave requests"
+    },
+    "/leaveBalances/{employeeId}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Employee leave balances"
+    },
+    "/shifts/{shiftId}": {
+      "schema": { "$ref": "#/entities/Shift" },
+      "description": "Work shifts"
+    },
+    "/shiftAssignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/Shift" },
+      "description": "Employee shift assignments"
+    },
+    "/holidays/{holidayId}": {
+      "schema": { "$ref": "#/entities/Holiday" },
+      "description": "Holiday calendar"
+    },
+    "/attendanceCorrections/{correctionId}": {
+      "schema": { "$ref": "#/entities/AttendanceCorrection" },
+      "description": "Attendance correction requests"
+    },
+    "/kpis/{kpiId}": {
+      "schema": { "$ref": "#/entities/KPI" },
+      "description": "Key Performance Indicators"
+    },
+    "/kpiAssignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/KPIAssignment" },
+      "description": "Custom KPI assignments"
+    },
+    "/goals/{goalId}": {
+      "schema": { "$ref": "#/entities/Goal" },
+      "description": "Employee goals"
+    },
+    "/performanceReviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/PerformanceReview" },
+      "description": "Performance review cycles"
+    },
+    "/recognitions/{recognitionId}": {
+      "schema": { "$ref": "#/entities/Recognition" },
+      "description": "Employee recognitions and awards"
+    },
+    "/performanceSnapshots/{snapshotId}": {
+      "schema": { "$ref": "#/entities/PerformanceSnapshot" },
+      "description": "Immutable performance snapshots"
+    },
+    "/kpiWeightConfigs/{configId}": {
+      "schema": { "$ref": "#/entities/KPI" },
+      "description": "Performance score weight settings"
+    }
+  }
+}

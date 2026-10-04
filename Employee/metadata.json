@@ -1,0 +1,7 @@
+{
+  "name": "Indesian Employee Portal",
+  "description": "Indesian One Universal Employee Operating System across Medical, Energy, Agri, Infra, and E-commerce verticals with RBAC/ABAC governance, workflows, analytics, and AI copilot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

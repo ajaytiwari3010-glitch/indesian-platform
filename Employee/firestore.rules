@@ -1,0 +1,265 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getEmployeeData() {
+      return get(/databases/$(database)/documents/employees/$(request.auth.uid)).data;
+    }
+
+    function isActiveEmployee() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/employees/$(request.auth.uid)) &&
+        getEmployeeData().status == 'ACTIVE' &&
+        getEmployeeData().isAuthorizedEmployee == true &&
+        getEmployeeData().accountType == 'EMPLOYEE';
+    }
+
+    function isEmployeeSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isManagerOrAdmin() {
+      return isActiveEmployee() &&
+        (getEmployeeData().role in ['DEPARTMENT_MANAGER', 'SENIOR_EXECUTIVE', 'HR_ADMIN', 'SUPER_ADMIN']);
+    }
+
+    // EMPLOYEES Collection
+    match /employees/{uid} {
+      allow get: if isEmployeeSelf(uid) || isActiveEmployee();
+      allow list: if isActiveEmployee();
+      allow update: if (isEmployeeSelf(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['employeeId', 'role', 'departmentId', 'permissions', 'status'])) || isManagerOrAdmin();
+      allow create: if isManagerOrAdmin();
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // DEPARTMENTS Collection
+    match /departments/{departmentId} {
+      allow read: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // TASKS Collection
+    match /tasks/{taskId} {
+      allow read, list: if isActiveEmployee();
+      allow create, update: if isActiveEmployee();
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // WORKFLOWS Collection (Universal Enterprise Workflows)
+    match /workflows/{instanceId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isActiveEmployee();
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // DOCUMENTS Collection (Classified SOPs & Records)
+    match /documents/{documentId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isActiveEmployee();
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // DOCUMENT ACKNOWLEDGEMENTS Collection (Immutable)
+    match /documentAcknowledgements/{ackId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee() && (request.resource.data.employeeUid == request.auth.uid || request.resource.data.employeeId == getEmployeeData().employeeId);
+      allow update, delete: if false; // Acknowledgements are permanently immutable
+    }
+
+    // FEATURE FLAGS Collection
+    match /featureFlags/{flagId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // APPROVALS Collection
+    match /approvals/{approvalId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isManagerOrAdmin();
+      allow delete: if false;
+    }
+
+    // ESCALATIONS Collection
+    match /escalations/{escalationId} {
+      allow read, list: if isActiveEmployee();
+      allow create, update: if isActiveEmployee();
+      allow delete: if false;
+    }
+
+    // NOTIFICATIONS Collection
+    match /notifications/{notificationId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update, delete: if isActiveEmployee() && (resource.data.recipientUid == request.auth.uid || resource.data.recipientEmployeeId == getEmployeeData().employeeId);
+    }
+
+    // AUDIT LOGS Collection (Append-only immutable audit trail)
+    match /auditLogs/{logId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee() || isSignedIn();
+      allow update, delete: if false; // Audit entries can NEVER be modified or deleted
+    }
+
+    // ATTENDANCE Collection
+    match /attendance/{attendanceId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee() && (request.resource.data.uid == request.auth.uid || isManagerOrAdmin());
+      allow update: if isActiveEmployee() && (resource.data.uid == request.auth.uid || isManagerOrAdmin());
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // LEAVE REQUESTS Collection
+    match /leaveRequests/{leaveRequestId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee() && request.resource.data.uid == request.auth.uid;
+      allow update: if isActiveEmployee() && (isManagerOrAdmin() || (resource.data.uid == request.auth.uid && request.resource.data.status == 'CANCELLED'));
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // LEAVE BALANCES Collection
+    match /leaveBalances/{employeeId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // SHIFTS Collection
+    match /shifts/{shiftId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // SHIFT ASSIGNMENTS Collection
+    match /shiftAssignments/{assignmentId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // HOLIDAYS Collection
+    match /holidays/{holidayId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // ATTENDANCE CORRECTIONS Collection
+    match /attendanceCorrections/{correctionId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee() && request.resource.data.uid == request.auth.uid;
+      allow update: if isManagerOrAdmin();
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // KPIS Collection
+    match /kpis/{kpiId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // KPI ASSIGNMENTS Collection
+    match /kpiAssignments/{assignmentId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // GOALS Collection
+    match /goals/{goalId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isActiveEmployee() && (isManagerOrAdmin() || resource.data.employeeId == getEmployeeData().employeeId || resource.data.employeeId == request.auth.uid);
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // PERFORMANCE REVIEWS Collection
+    match /performanceReviews/{reviewId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isActiveEmployee() && (resource.data.status != 'FINALIZED' || isManagerOrAdmin());
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // RECOGNITIONS Collection
+    match /recognitions/{recognitionId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // PERFORMANCE SNAPSHOTS Collection (Immutable)
+    match /performanceSnapshots/{snapshotId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isManagerOrAdmin();
+      allow update, delete: if false; // Snapshots cannot be altered
+    }
+
+    // KPI WEIGHT CONFIGS Collection
+    match /kpiWeightConfigs/{configId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // TRAINING PROGRAMS Collection
+    match /trainingPrograms/{trainingId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // TRAINING ASSIGNMENTS Collection
+    match /trainingAssignments/{assignmentId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isManagerOrAdmin();
+      allow update: if isActiveEmployee() && (resource.data.employeeId == getEmployeeData().employeeId || isManagerOrAdmin());
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // SKILLS Collection
+    match /skills/{skillId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // EMPLOYEE SKILLS Collection
+    match /employeeSkills/{employeeSkillId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee() && request.resource.data.employeeId == getEmployeeData().employeeId; // Employees can propose
+      allow update: if isManagerOrAdmin(); // Only Manager/HR can verify skills
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // COMPETENCIES Collection
+    match /competencies/{competencyId} {
+      allow read, list: if isActiveEmployee();
+      allow write: if isManagerOrAdmin();
+    }
+
+    // DEVELOPMENT PLANS Collection
+    match /developmentPlans/{developmentPlanId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isManagerOrAdmin();
+      allow update: if isActiveEmployee() && (resource.data.employeeId == getEmployeeData().employeeId || isManagerOrAdmin());
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // CERTIFICATIONS Collection
+    match /certifications/{certificationId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isManagerOrAdmin() || (resource.data.employeeId == getEmployeeData().employeeId && request.resource.data.verificationStatus == 'PENDING_VERIFICATION');
+      allow delete: if isManagerOrAdmin();
+    }
+
+    // TRAINING ASSESSMENTS Collection
+    match /trainingAssessments/{assessmentId} {
+      allow read, list: if isActiveEmployee();
+      allow create: if isActiveEmployee();
+      allow update: if isManagerOrAdmin() || resource.data.employeeId == getEmployeeData().employeeId;
+      allow delete: if isManagerOrAdmin();
+    }
+  }
+}
