@@ -1,0 +1,6 @@
+{
+  "name": "Indesian Medical Partner",
+  "description": "Enterprise universal partner portal for healthcare, clean energy, agri-logistics, heavy infrastructure, and direct e-commerce partners with category-aware dashboards, RBAC, settlements, request fulfillment, and workspace switching.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

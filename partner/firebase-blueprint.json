@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "Partner": {
+      "collection": "partners",
+      "fields": {
+        "partnerId": { "type": "string", "required": true },
+        "organizationName": { "type": "string", "required": true },
+        "legalName": { "type": "string", "required": true },
+        "partnerType": { "type": "string", "required": true },
+        "contactPerson": { "type": "string", "required": true },
+        "corporateEmail": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": true },
+        "address": { "type": "string", "required": true },
+        "city": { "type": "string", "required": true },
+        "state": { "type": "string", "required": true },
+        "pinCode": { "type": "string", "required": true },
+        "gstin": { "type": "string", "required": false },
+        "pan": { "type": "string", "required": false },
+        "registrationNumber": { "type": "string", "required": true },
+        "licenseDetails": { "type": "string", "required": false },
+        "approvalStatus": { "type": "string", "required": true },
+        "operatingHours": { "type": "string", "required": false },
+        "bankAccountName": { "type": "string", "required": false },
+        "bankAccountNumber": { "type": "string", "required": false },
+        "ifscCode": { "type": "string", "required": false },
+        "bankName": { "type": "string", "required": false },
+        "upiId": { "type": "string", "required": false },
+        "performanceScore": { "type": "number", "required": false },
+        "createdAt": { "type": "string", "required": true },
+        "updatedAt": { "type": "string", "required": true }
+      }
+    },
+    "PartnerUser": {
+      "collection": "partnerUsers",
+      "fields": {
+        "uid": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "email": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "role": { "type": "string", "required": true },
+        "department": { "type": "string", "required": false },
+        "phone": { "type": "string", "required": false },
+        "status": { "type": "string", "required": true },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "PartnerService": {
+      "collection": "partnerServices",
+      "fields": {
+        "serviceId": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "category": { "type": "string", "required": true },
+        "description": { "type": "string", "required": false },
+        "price": { "type": "number", "required": true },
+        "availability": { "type": "boolean", "required": true },
+        "status": { "type": "string", "required": true },
+        "location": { "type": "string", "required": false },
+        "operatingHours": { "type": "string", "required": false },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "PartnerRequest": {
+      "collection": "partnerRequests",
+      "fields": {
+        "requestId": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "source": { "type": "string", "required": true },
+        "patientRefId": { "type": "string", "required": true },
+        "patientNameMasked": { "type": "string", "required": true },
+        "serviceId": { "type": "string", "required": true },
+        "serviceName": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true },
+        "urgency": { "type": "string", "required": true },
+        "notes": { "type": "string", "required": false },
+        "createdAt": { "type": "string", "required": true },
+        "updatedAt": { "type": "string", "required": true }
+      }
+    },
+    "PartnerBooking": {
+      "collection": "partnerBookings",
+      "fields": {
+        "bookingId": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "patientRefId": { "type": "string", "required": true },
+        "serviceName": { "type": "string", "required": true },
+        "date": { "type": "string", "required": true },
+        "time": { "type": "string", "required": true },
+        "assignedStaffName": { "type": "string", "required": false },
+        "status": { "type": "string", "required": true },
+        "paymentStatus": { "type": "string", "required": true },
+        "notes": { "type": "string", "required": false },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "PartnerDocument": {
+      "collection": "partnerDocuments",
+      "fields": {
+        "documentId": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "title": { "type": "string", "required": true },
+        "category": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true },
+        "fileUrl": { "type": "string", "required": false },
+        "uploadedAt": { "type": "string", "required": true }
+      }
+    },
+    "PartnerSettlement": {
+      "collection": "partnerSettlements",
+      "fields": {
+        "settlementId": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "amount": { "type": "number", "required": true },
+        "status": { "type": "string", "required": true },
+        "requestedAt": { "type": "string", "required": true },
+        "completedAt": { "type": "string", "required": false }
+      }
+    },
+    "PartnerAuditLog": {
+      "collection": "partnerAuditLogs",
+      "fields": {
+        "logId": { "type": "string", "required": true },
+        "partnerId": { "type": "string", "required": true },
+        "userId": { "type": "string", "required": true },
+        "action": { "type": "string", "required": true },
+        "module": { "type": "string", "required": true },
+        "details": { "type": "string", "required": true },
+        "timestamp": { "type": "string", "required": true }
+      }
+    }
+  }
+}

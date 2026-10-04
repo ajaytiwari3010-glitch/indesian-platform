@@ -1,0 +1,65 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isPartnerOwner(partnerId) {
+      return isAuthenticated() && (
+        request.auth.uid == partnerId ||
+        request.auth.token.partnerId == partnerId
+      );
+    }
+
+    function isValidDocType() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('image/png') ||
+             request.resource.contentType.matches('image/jpeg') ||
+             request.resource.contentType.matches('image/jpg') ||
+             request.resource.contentType.matches('image/webp');
+    }
+
+    function isValidDocSize() {
+      return request.resource.size <= 15 * 1024 * 1024; // 15MB max limit
+    }
+
+    // Default Deny Root
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Partner Compliance & Medical Document Vault
+    // Path: partners/{partnerId}/documents/{documentId}/{filename}
+    match /partners/{partnerId}/documents/{documentId}/{filename} {
+      // Read: Authorized partner staff and Indesian compliance auditors
+      allow read: if isAuthenticated() && (
+        isPartnerOwner(partnerId) ||
+        request.auth.token.role == "INDESIAN_SUPER_ADMIN" ||
+        request.auth.token.role == "COMPLIANCE_AUDITOR"
+      );
+
+      // Write: Authorized partner owner only with strict size and MIME type validation
+      allow create, update: if isAuthenticated() &&
+                               isPartnerOwner(partnerId) &&
+                               isValidDocType() &&
+                               isValidDocSize();
+
+      // Delete: Authorized partner admin only
+      allow delete: if isAuthenticated() && isPartnerOwner(partnerId);
+    }
+
+    // Diagnostic Lab Reports & Clinical Attachments
+    // Path: partners/{partnerId}/reports/{reportId}/{filename}
+    match /partners/{partnerId}/reports/{reportId}/{filename} {
+      allow read: if isAuthenticated() && isPartnerOwner(partnerId);
+      allow create, update: if isAuthenticated() &&
+                               isPartnerOwner(partnerId) &&
+                               isValidDocType() &&
+                               isValidDocSize();
+      allow delete: if isAuthenticated() && isPartnerOwner(partnerId);
+    }
+  }
+}

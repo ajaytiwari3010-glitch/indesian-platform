@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data;
+    }
+
+    function isPartnerUser(partnerId) {
+      return isAuthenticated() && (
+        request.auth.uid == partnerId ||
+        getUserData().partnerId == partnerId
+      );
+    }
+
+    function isApprovedPartner(partnerId) {
+      return isPartnerUser(partnerId) &&
+        get(/databases/$(database)/documents/partners/$(partnerId)).data.approvalStatus == "APPROVED";
+    }
+
+    function isPartnerAdmin(partnerId) {
+      return isPartnerUser(partnerId) && getUserData().role == "PARTNER_ADMIN";
+    }
+
+    // Partner Users Collection
+    match /partnerUsers/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == uid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'partnerId', 'status'])
+      );
+      allow delete: if false;
+    }
+
+    // Partners Collection
+    match /partners/{partnerId} {
+      allow read: if isAuthenticated() && isPartnerUser(partnerId);
+      allow create: if request.resource.data.approvalStatus == "PENDING";
+      allow update: if isPartnerUser(partnerId) && (
+        isPartnerAdmin(partnerId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['partnerId', 'approvalStatus', 'createdAt'])
+      );
+      allow delete: if false;
+    }
+
+    // Services
+    match /partnerServices/{serviceId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isApprovedPartner(request.resource.data.partnerId);
+      allow update: if isAuthenticated() && isApprovedPartner(resource.data.partnerId) && resource.data.partnerId == request.resource.data.partnerId;
+      allow delete: if isAuthenticated() && isApprovedPartner(resource.data.partnerId) && isPartnerAdmin(resource.data.partnerId);
+    }
+
+    // Requests
+    match /partnerRequests/{requestId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isApprovedPartner(resource.data.partnerId) && resource.data.partnerId == request.resource.data.partnerId;
+      allow delete: if false;
+    }
+
+    // Bookings
+    match /partnerBookings/{bookingId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isApprovedPartner(request.resource.data.partnerId);
+      allow update: if isAuthenticated() && isApprovedPartner(resource.data.partnerId) && resource.data.partnerId == request.resource.data.partnerId;
+      allow delete: if false;
+    }
+
+    // Orders
+    match /partnerOrders/{orderId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isApprovedPartner(request.resource.data.partnerId);
+      allow update: if isAuthenticated() && isApprovedPartner(resource.data.partnerId) && resource.data.partnerId == request.resource.data.partnerId;
+      allow delete: if false;
+    }
+
+    // Documents
+    match /partnerDocuments/{documentId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isPartnerUser(request.resource.data.partnerId);
+      allow update: if isAuthenticated() && isPartnerUser(resource.data.partnerId) && isPartnerAdmin(resource.data.partnerId);
+      allow delete: if isAuthenticated() && isPartnerUser(resource.data.partnerId) && isPartnerAdmin(resource.data.partnerId);
+    }
+
+    // Transactions & Settlements
+    match /partnerTransactions/{transactionId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isApprovedPartner(request.resource.data.partnerId);
+      allow update, delete: if false;
+    }
+
+    match /partnerSettlements/{settlementId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isApprovedPartner(request.resource.data.partnerId);
+      allow update: if isAuthenticated() && isApprovedPartner(resource.data.partnerId) && isPartnerAdmin(resource.data.partnerId);
+      allow delete: if false;
+    }
+
+    // Notifications
+    match /partnerNotifications/{notificationId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow delete: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+    }
+
+    // Support Tickets
+    match /partnerSupportTickets/{ticketId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated() && isPartnerUser(request.resource.data.partnerId);
+      allow update: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow delete: if false;
+    }
+
+    // Audit Logs - Strict Append Only
+    match /partnerAuditLogs/{logId} {
+      allow read: if isAuthenticated() && isPartnerUser(resource.data.partnerId);
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+  }
+}
