@@ -1,0 +1,266 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && (
+        request.auth.token.role == role || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == role)
+      );
+    }
+
+    function isAdmin() {
+      return hasRole('ADMIN');
+    }
+
+    function isDoctor() {
+      return hasRole('DOCTOR');
+    }
+
+    function isPharmacy() {
+      return hasRole('PHARMACY');
+    }
+
+    function isLab() {
+      return hasRole('LAB');
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 2. Appointments Collection (Strict Patient/Doctor/Admin Isolation & Field Protection)
+    match /appointments/{appointmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        resource.data.familyProfileId == request.auth.uid || 
+        resource.data.doctorId == request.auth.uid || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.doctorId == getUserData().doctorId) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.patientId == request.auth.uid || 
+        request.resource.data.familyProfileId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.doctorId == request.auth.uid || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.doctorId == getUserData().doctorId) || 
+        (
+          (resource.data.patientId == request.auth.uid || resource.data.familyProfileId == request.auth.uid) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus', 'isPaid', 'fee', 'paymentTransactionId'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 3. Prescriptions Collection (Doctor-authored, Patient read-only)
+    match /prescriptions/{prescriptionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isPharmacy() || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (isDoctor() || isAdmin());
+      allow update: if isAuthenticated() && (isDoctor() || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // 4. Medical Records Collection
+    match /medicalRecords/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.patientId == request.auth.uid);
+    }
+
+    // 5. Medicines Collection
+    match /medicines/{medicineId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isPharmacy() || 
+        isAdmin()
+      );
+      allow create, update: if isAuthenticated() && (
+        request.resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.patientId == request.auth.uid);
+    }
+
+    // 6. Lab Bookings Collection
+    match /labBookings/{bookingId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isLab() || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.patientId == request.auth.uid || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        isLab() || 
+        (
+          resource.data.patientId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'totalAmount', 'paymentStatus', 'reportUrl'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 7. Pharmacy Orders Collection
+    match /pharmacyOrders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isPharmacy() || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        isPharmacy() || 
+        (
+          resource.data.patientId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['orderStatus', 'finalAmount', 'paymentStatus'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 8. Hospital Referrals Collection
+    match /hospitalReferrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        hasRole('HOSPITAL') || 
+        isAdmin()
+      );
+      allow create, update: if isAuthenticated() && (
+        isDoctor() || 
+        hasRole('HOSPITAL') || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 9. Partners / Public Directory
+    match /partners/{partnerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 10. Doctors Master Collection (Public read for OPD discovery, secure write for CRM)
+    match /doctors/{doctorId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && (
+        isAdmin() || 
+        (isDoctor() && request.auth.uid == doctorId)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 11. Patient Intake Requests Collection
+    match /intakeRequests/{intakeId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isDoctor() || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 12. Consultation Sessions Collection (Phase 3A Video Rooms)
+    match /consultationSessions/{sessionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        resource.data.familyProfileId == request.auth.uid || 
+        resource.data.doctorId == request.auth.uid || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.doctorId == getUserData().doctorId) ||
+        isAdmin()
+      );
+      allow create, update: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        resource.data.familyProfileId == request.auth.uid || 
+        resource.data.doctorId == request.auth.uid || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.doctorId == getUserData().doctorId) ||
+        isDoctor() || 
+        isAdmin()
+      );
+      allow delete: if false; // Immutable session records
+    }
+
+    // 13. Payment Transactions Collection (Server-Authoritative Lockdown)
+    match /paymentTransactions/{txnId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        isAdmin() || 
+        (
+          isDoctor() && 
+          resource.data.entityType == 'APPOINTMENT' && 
+          (resource.data.doctorId == request.auth.uid || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.doctorId == getUserData().doctorId))
+        )
+      );
+      // All writes strictly forbidden for client SDKs. Must be executed via Server API/Admin SDK.
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // 14. Audit Logs Collection (Immutable, Admin/Server only)
+    match /auditLogs/{logId} {
+      allow read: if isAuthenticated() && isAdmin();
+      allow create: if isAuthenticated() && isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

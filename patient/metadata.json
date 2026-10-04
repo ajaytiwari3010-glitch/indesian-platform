@@ -1,0 +1,6 @@
+{
+  "name": "Indesian Digital OPD",
+  "description": "Your Intelligent Online Hospital for India. AI-powered consultations, diagnostic lab tests, medical report analysis, hospital discovery, treatment cost estimation, family health management, and integrated doctor clinical workspace with unified timelines.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,91 @@
+# ==============================================================================
+# Production-Ready Git Ignore Rules — Indesian Digital OPD
+# Ensures no sensitive credentials, secrets, build artifacts, or caches are committed
+# ==============================================================================
+
+# Environment variable files (CRITICAL: Never commit active secrets or keys)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+.env.backup
+.env.vault
+
+# Explicitly allow the sanitized environment template
+!.env.example
+
+# Service account credentials, private keys & cloud config JSON files
+*service-account*.json
+*service_account*.json
+*credentials*.json
+gcloud-credentials*.json
+google-services.json
+firebase-adminsdk*.json
+
+# Private keys, certificates and authentication tokens
+*.pem
+*.key
+*.pkcs12
+*.p12
+*.pfx
+*.cert
+*.crt
+*.pub
+id_rsa
+id_ed25519
+secring.gpg
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build, compilation & bundle outputs
+dist/
+dist-ssr/
+build/
+out/
+*.tsbuildinfo
+
+# Test coverage & benchmarking artifacts
+coverage/
+.nyc_output/
+*.lcov
+
+# Debugging and runtime log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# System, OS & Editor artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Cache directories
+.cache/
+.parcel-cache/
+.vite/
+.eslintcache
+.temp/
+tmp/
