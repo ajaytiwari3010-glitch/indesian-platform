@@ -1,0 +1,104 @@
+# ==============================================================================
+# INDESIAN ONE SMART CRM — PRODUCTION .GITIGNORE
+# Comprehensive protection against committing secrets, credentials, and build artifacts
+# ==============================================================================
+
+# 1. Environment & Secret Configurations (CRITICAL: NEVER COMMIT SECRETS)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.*.local
+.env*.local
+
+# Explicitly whitelist the example template so collaborators know required variables
+!.env.example
+
+# 2. Cloud Credentials, Service Accounts & API Secrets
+*service-account*.json
+*service_account*.json
+*credentials*.json
+firebase-adminsdk*.json
+google-credentials*.json
+client_secret*.json
+gcp-billing-credentials*.json
+*.secret
+*.secrets
+
+# 3. Cryptographic Keys & Certificates
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.pkcs12
+*.keystore
+id_rsa*
+id_ed25519*
+
+# 4. Dependencies & Package Managers
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+
+# 5. Build, Bundler & Compilation Outputs
+dist/
+dist-ssr/
+build/
+out/
+server.js
+dist/server.cjs
+*.tsbuildinfo
+
+# 6. Caches & Temporary Runtime Files
+.vite/
+.cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+.stylelintcache
+*.tmp
+*.temp
+
+# 7. Logs & Debug Artifacts
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 8. Testing & Code Coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# 9. Operating System Metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 10. IDE & Editor Workspaces
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~

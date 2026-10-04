@@ -1,0 +1,507 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for Role-Based Access Control (RBAC)
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && getUserData().role == role;
+    }
+
+    function isStaffOrAdmin() {
+      return isSignedIn() && (
+        getUserData().role in ['super_admin', 'business_admin', 'business_manager', 'employee', 'ops_exec', 'support_exec', 'finance_user']
+      );
+    }
+
+    // 1. Users collection: /users/{userId}
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) || isStaffOrAdmin();
+    }
+
+    // 2. Partners collection: /partners/{partnerId}
+    match /partners/{partnerId} {
+      allow read: if isSignedIn();
+      allow write: if isStaffOrAdmin() || isOwner(partnerId);
+    }
+
+    // 3. Enquiries collection: /enquiries/{enquiryId}
+    match /enquiries/{enquiryId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.customerId == request.auth.uid || 
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid ||
+        resource.data.hospitalPartnerId == request.auth.uid ||
+        hasRole('partner') ||
+        hasRole('hospital_partner')
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin() || 
+        resource.data.partnerId == request.auth.uid || 
+        resource.data.hospitalPartnerId == request.auth.uid ||
+        hasRole('partner') ||
+        hasRole('hospital_partner');
+      allow delete: if isStaffOrAdmin();
+    }
+
+    // 4. Requests collection: /requests/{requestId}
+    match /requests/{requestId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.customerId == request.auth.uid || 
+        resource.data.assignedPartnerId == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin() || resource.data.customerId == request.auth.uid;
+      allow delete: if hasRole('super_admin') || hasRole('business_admin');
+    }
+
+    // 5. Tasks collection: /tasks/{taskId}
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.assignedUserId == request.auth.uid
+      );
+      allow create, update: if isStaffOrAdmin() || (isSignedIn() && resource.data.assignedUserId == request.auth.uid);
+      allow delete: if isStaffOrAdmin();
+    }
+
+    // 6. Orders collection: /orders/{orderId}
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.customerId == request.auth.uid || 
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.sellerId == request.auth.uid ||
+        resource.data.pharmacyPartnerId == request.auth.uid ||
+        hasRole('partner') ||
+        hasRole('pharmacy_partner')
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin() || resource.data.sellerId == request.auth.uid || resource.data.pharmacyPartnerId == request.auth.uid || hasRole('partner') || hasRole('pharmacy_partner');
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 7. Documents collection: /documents/{documentId}
+    match /documents/{documentId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.uploaderId == request.auth.uid ||
+        resource.data.patientId == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin() || resource.data.uploaderId == request.auth.uid;
+      allow delete: if isStaffOrAdmin();
+    }
+
+    // 8. Financials collection: /financials/{transactionId}
+    match /financials/{transactionId} {
+      allow read: if isSignedIn() && (
+        hasRole('super_admin') || 
+        hasRole('business_admin') || 
+        hasRole('finance_user') ||
+        resource.data.patientId == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid
+      );
+      allow write: if isSignedIn() && (
+        hasRole('super_admin') || 
+        hasRole('business_admin') || 
+        hasRole('finance_user')
+      );
+    }
+
+    // 9. Audit Logs collection: /auditLogs/{logId}
+    match /auditLogs/{logId} {
+      allow read: if isStaffOrAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // 10. Live OPD Appointments: /appointments/{appointmentId}
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.patientId == request.auth.uid ||
+        resource.data.doctorId == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isStaffOrAdmin() || resource.data.patientId == request.auth.uid;
+    }
+
+    // 11. Live OPD Prescriptions: /prescriptions/{prescriptionId}
+    match /prescriptions/{prescriptionId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.patientId == request.auth.uid ||
+        resource.data.doctorId == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 12. Live OPD Lab Records: /labRecords/{labRecordId}
+    match /labRecords/{labRecordId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.patientId == request.auth.uid ||
+        resource.data.labPartnerId == request.auth.uid ||
+        hasRole('partner') ||
+        hasRole('doctor_partner')
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin() || (isSignedIn() && (resource.data.patientId == request.auth.uid || resource.data.labPartnerId == request.auth.uid || hasRole('partner') || hasRole('doctor_partner')));
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 13. Live OPD Pharmacy Orders: /pharmacyOrders/{pharmacyOrderId}
+    match /pharmacyOrders/{pharmacyOrderId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.patientId == request.auth.uid ||
+        resource.data.pharmacyPartnerId == request.auth.uid ||
+        hasRole('partner') ||
+        hasRole('pharmacy_partner')
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin() || resource.data.patientId == request.auth.uid || resource.data.pharmacyPartnerId == request.auth.uid || hasRole('partner') || hasRole('pharmacy_partner');
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 14. Notifications: /notifications/{notificationId}
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() || 
+        resource.data.recipientUid == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.recipientRole == getUserData().role ||
+        hasRole('super_admin')
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.recipientUid == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.recipientRole == getUserData().role
+      );
+      allow delete: if isStaffOrAdmin();
+    }
+
+    // 15. Communication Preferences: /communicationPreferences/{uid}
+    match /communicationPreferences/{uid} {
+      allow read, write: if isSignedIn() && (request.auth.uid == uid || isStaffOrAdmin());
+    }
+
+    // 16. Notification Deliveries: /notificationDeliveries/{deliveryId}
+    match /notificationDeliveries/{deliveryId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.recipientUid == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.recipientUid == request.auth.uid
+      );
+      allow delete: if isStaffOrAdmin();
+    }
+
+    // 17. Communication Provider Configuration: /communicationProviderConfig/{providerId}
+    match /communicationProviderConfig/{providerId} {
+      allow read: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+      allow write: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+    }
+
+    // 18. Notification Templates: /notificationTemplates/{templateId}
+    match /notificationTemplates/{templateId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+    }
+
+    // 19. Partner Settlements: /partnerSettlements/{settlementId}
+    match /partnerSettlements/{settlementId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.partnerId == request.auth.uid ||
+        hasRole('partner')
+      );
+      allow write: if isSignedIn() && isStaffOrAdmin();
+    }
+
+    // 20. Partner Ratings: /partnerRatings/{ratingId}
+    match /partnerRatings/{ratingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && isStaffOrAdmin();
+    }
+
+    // 21. Financial Transactions: /financialTransactions/{transactionId}
+    match /financialTransactions/{transactionId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid ||
+        hasRole('partner')
+      );
+      allow write: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('business_manager') ||
+        hasRole('finance_user') ||
+        isStaffOrAdmin()
+      );
+    }
+
+    // 22. Commission Rules: /commissionRules/{ruleId}
+    match /commissionRules/{ruleId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('finance_user')
+      );
+    }
+
+    // 23. Settlement Adjustments: /settlementAdjustments/{adjustmentId}
+    match /settlementAdjustments/{adjustmentId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.partnerId == request.auth.uid ||
+        hasRole('partner')
+      );
+      allow write: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('finance_user') ||
+        isStaffOrAdmin()
+      );
+    }
+
+    // 24. Payments collection: /payments/{paymentId}
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.customerUid == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid ||
+        hasRole('partner')
+      );
+      allow create, update: if isSignedIn();
+      allow delete: if hasRole('super_admin') || hasRole('business_admin');
+    }
+
+    // 25. Payment Reconciliations collection: /paymentReconciliations/{reconciliationId}
+    match /paymentReconciliations/{reconciliationId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.customerUid == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid ||
+        hasRole('partner')
+      );
+      allow create, update: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('finance_user')
+      );
+      allow delete: if hasRole('super_admin') || hasRole('business_admin');
+    }
+
+    // 26. Partner Payable Reconciliations collection: /partnerPayableReconciliations/{reconciliationId}
+    match /partnerPayableReconciliations/{reconciliationId} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        (hasRole('partner') && resource.data.partnerId == request.auth.uid)
+      );
+      allow create, update: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('finance_user')
+      );
+      allow delete: if hasRole('super_admin') || hasRole('business_admin');
+    }
+
+    // 27. Founder Recommendations collection: /founderRecommendations/{id}
+    match /founderRecommendations/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('business_manager')
+      );
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 28. Founder Alerts collection: /founderAlerts/{id}
+    match /founderAlerts/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 29. Cost Metrics collection: /costMetrics/{id}
+    match /costMetrics/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('finance_user')
+      );
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 30. External Integrations collection: /externalIntegrations/{id}
+    match /externalIntegrations/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin')
+      );
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 31. External Costs collection: /externalCosts/{id}
+    match /externalCosts/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && (
+        hasRole('super_admin') ||
+        hasRole('business_admin') ||
+        hasRole('finance_user')
+      );
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 32. Usage Metrics collection: /usageMetrics/{id}
+    match /usageMetrics/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 33. Integration Sync Logs collection: /integrationSyncLogs/{id}
+    match /integrationSyncLogs/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create: if isSignedIn() && isStaffOrAdmin();
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // 34. Communication Providers collection: /communicationProviders/{id}
+    match /communicationProviders/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 35. Communication Logs collection: /communicationLogs/{id}
+    match /communicationLogs/{id} {
+      allow read: if isSignedIn() && (
+        isStaffOrAdmin() ||
+        resource.data.recipientUserId == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin();
+      allow delete: if false; // Communication logs are immutable
+    }
+
+    // 36. Communication Templates collection: /communicationTemplates/{id}
+    match /communicationTemplates/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 37. Automation Events collection: /automationEvents/{id}
+    match /automationEvents/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 38. Automation Executions collection: /automationExecutions/{id}
+    match /automationExecutions/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin();
+      allow delete: if false; // Automation logs are immutable
+    }
+
+    // PHASE 5D: AI BRAIN COLLECTIONS
+
+    // 39. AI Insights: /aiInsights/{id}
+    match /aiInsights/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 40. AI Recommendations: /aiRecommendations/{id}
+    match /aiRecommendations/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 41. AI Requests: /aiRequests/{id}
+    match /aiRequests/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 42. AI Knowledge Documents: /aiKnowledgeDocuments/{id}
+    match /aiKnowledgeDocuments/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin') || hasRole('business_manager'));
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 43. AI Knowledge Chunks: /aiKnowledgeChunks/{id}
+    match /aiKnowledgeChunks/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 44. AI Risk Signals: /aiRiskSignals/{id}
+    match /aiRiskSignals/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 45. AI Opportunity Signals: /aiOpportunitySignals/{id}
+    match /aiOpportunitySignals/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create, update: if isSignedIn() && isStaffOrAdmin();
+      allow delete: if hasRole('super_admin');
+    }
+
+    // 46. AI Audit Logs: /aiAuditLogs/{id}
+    match /aiAuditLogs/{id} {
+      allow read: if isSignedIn() && isStaffOrAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // 47. System Config (AI Control Center Config): /systemConfig/{configId}
+    match /systemConfig/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (hasRole('super_admin') || hasRole('business_admin'));
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Indesian One Smart CRM",
+  "description": "Unified role-wise intelligent CRM platform for Indesian Group, Digital OPD, Energy, Agri, Infra, and E-commerce with AI assistant, n8n workflows, business switcher, and dynamic dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
